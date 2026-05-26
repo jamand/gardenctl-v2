@@ -13,6 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,6 +24,7 @@ import (
 	"github.com/gardener/gardenctl-v2/pkg/ac"
 	cmdtarget "github.com/gardener/gardenctl-v2/pkg/cmd/target"
 	"github.com/gardener/gardenctl-v2/pkg/config"
+	"github.com/gardener/gardenctl-v2/pkg/flags"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
@@ -123,7 +125,7 @@ var _ = Describe("Target Command", func() {
 		})
 
 		It("should reject bad options", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 
 			Expect(cmd.RunE(cmd, nil)).NotTo(Succeed())
 		})
@@ -218,7 +220,7 @@ var _ = Describe("Target Command", func() {
 		})
 
 		It("should be able to target via pattern matching", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 
 			// run command
 			Expect(cmd.RunE(cmd, []string{fmt.Sprintf("shoot--%s--%s", projectName, shootName)})).To(Succeed())
@@ -386,5 +388,31 @@ var _ = Describe("Target Options", func() {
 		o.TargetName = "foo"
 
 		Expect(o.Validate()).To(Succeed())
+	})
+})
+
+var _ = Describe("readAccessLevel", func() {
+	It("returns empty when the command has no access-level flag bound (standalone subcommand in tests)", func() {
+		cmd := &cobra.Command{Use: "stub"}
+		Expect(cmdtarget.ReadAccessLevel(cmd)).To(BeEmpty())
+	})
+
+	It("returns the parsed value when the flag is bound and set", func() {
+		var level config.KubeconfigAccessLevel
+
+		cmd := &cobra.Command{Use: "stub"}
+		flags.AddKubeconfigAccessLevelFlag(cmd, &level)
+		Expect(cmd.PersistentFlags().Set("access-level", string(config.KubeconfigAccessLevelViewer))).To(Succeed())
+
+		Expect(cmdtarget.ReadAccessLevel(cmd)).To(Equal(config.KubeconfigAccessLevelViewer))
+	})
+
+	It("returns empty when the flag is bound but never set", func() {
+		var level config.KubeconfigAccessLevel
+
+		cmd := &cobra.Command{Use: "stub"}
+		flags.AddKubeconfigAccessLevelFlag(cmd, &level)
+
+		Expect(cmdtarget.ReadAccessLevel(cmd)).To(BeEmpty())
 	})
 })

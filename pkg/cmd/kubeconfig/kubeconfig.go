@@ -25,15 +25,14 @@ import (
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
-// NewCmdKubeconfig returns a new kubeconfig command. accessLevel is bound to
-// the --access-level flag.
-func NewCmdKubeconfig(f util.Factory, ioStreams util.IOStreams, accessLevel *config.KubeconfigAccessLevel) *cobra.Command {
+// NewCmdKubeconfig returns a new kubeconfig command.
+func NewCmdKubeconfig(f util.Factory, ioStreams util.IOStreams) *cobra.Command {
 	o := newOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:   "kubeconfig",
 		Short: "Print the kubeconfig for the current target",
-		Example: `# Print the kubeconfig for the current target 
+		Example: `# Print the kubeconfig for the current target
 gardenctl kubeconfig
 
 # Print the kubeconfig for the current target in json format
@@ -53,7 +52,7 @@ gardenctl kubeconfig --garden my-garden --project my-project`,
 
 	f.TargetFlags().AddFlags(cmd.Flags())
 	flags.RegisterCompletionFuncsForTargetFlags(cmd, f, ioStreams, cmd.Flags())
-	flags.AddKubeconfigAccessLevelFlag(cmd, accessLevel)
+	flags.AddKubeconfigAccessLevelFlag(cmd, &o.AccessLevel)
 
 	utilruntime.Must(cmd.RegisterFlagCompletionFunc("output", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		return o.PrintFlags.AllowedFormats(), cobra.ShellCompDirectiveNoFileComp
@@ -81,6 +80,10 @@ type options struct {
 	// Context holds the name of the kubeconfig context to use
 	Context string
 
+	// AccessLevel is the value bound to the --access-level flag (empty when
+	// unset). Threaded into f.Manager via target.WithAccessLevel.
+	AccessLevel config.KubeconfigAccessLevel
+
 	// RawConfig holds the information needed to build connect to remote kubernetes clusters as a given user
 	RawConfig *clientcmdapi.Config
 }
@@ -105,7 +108,7 @@ func (o *options) AddFlags(flags *pflag.FlagSet) {
 
 // Complete adapts from the command line args to the data required.
 func (o *options) Complete(f util.Factory, _ *cobra.Command, _ []string) error {
-	manager, err := f.Manager()
+	manager, err := f.Manager(target.WithAccessLevel(o.AccessLevel))
 	if err != nil {
 		return err
 	}

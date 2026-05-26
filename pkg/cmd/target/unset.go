@@ -15,6 +15,8 @@ import (
 
 	"github.com/gardener/gardenctl-v2/internal/util"
 	"github.com/gardener/gardenctl-v2/pkg/cmd/base"
+	"github.com/gardener/gardenctl-v2/pkg/config"
+	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
 // NewCmdUnset returns a new (target) unset command.
@@ -51,10 +53,16 @@ type UnsetOptions struct {
 
 	// Kind is the target kind, for example "garden" or "seed"
 	Kind TargetKind
+	// AccessLevel mirrors the inherited --access-level persistent flag. The
+	// post-unset symlink kubeconfig is generated with this level (if symlink
+	// mode is on), matching the behavior of `gardenctl target`.
+	AccessLevel config.KubeconfigAccessLevel
 }
 
 // Complete adapts from the command line args to the data required.
-func (o *UnsetOptions) Complete(_ util.Factory, _ *cobra.Command, args []string) error {
+func (o *UnsetOptions) Complete(_ util.Factory, cmd *cobra.Command, args []string) error {
+	o.AccessLevel = readAccessLevel(cmd)
+
 	if len(args) > 0 {
 		o.Kind = TargetKind(strings.TrimSpace(args[0]))
 	}
@@ -81,7 +89,7 @@ func (o *UnsetOptions) Validate() error {
 
 // Run executes the command.
 func (o *UnsetOptions) Run(f util.Factory) error {
-	manager, err := f.Manager()
+	manager, err := f.Manager(target.WithAccessLevel(o.AccessLevel))
 	if err != nil {
 		return err
 	}

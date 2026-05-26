@@ -62,7 +62,7 @@ var _ = Describe("Kubeconfig Command - Options", func() {
 			ctx = context.Background()
 			config = &clientcmd.DirectClientConfig{}
 
-			factory.EXPECT().Manager().Return(manager, nil)
+			factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 			factory.EXPECT().Context().Return(ctx)
 
 			manager.EXPECT().CurrentTarget().Return(t, nil)
@@ -73,7 +73,7 @@ var _ = Describe("Kubeconfig Command - Options", func() {
 			factory.EXPECT().TargetFlags().Return(targetFlags).AnyTimes()
 
 			streams, _, out, _ = util.NewTestIOStreams()
-			cmd = cmdkubeconfig.NewCmdKubeconfig(factory, streams, new(gardenconfig.KubeconfigAccessLevel))
+			cmd = cmdkubeconfig.NewCmdKubeconfig(factory, streams)
 		})
 
 		It("should execute the kubeconfig subcommand", func() {
@@ -106,7 +106,7 @@ users: null
 
 		Describe("completing the command options", func() {
 			It("should complete options", func() {
-				factory.EXPECT().Manager().Return(manager, nil)
+				factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 				factory.EXPECT().Context().Return(ctx)
 				manager.EXPECT().CurrentTarget().Return(t, nil)
 				manager.EXPECT().ClientConfig(ctx, t).Return(config, nil)
@@ -122,7 +122,7 @@ users: null
 					streams, _, _, errOut := util.NewTestIOStreams()
 					options.IOStreams = streams
 
-					factory.EXPECT().Manager().Return(manager, nil)
+					factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 					factory.EXPECT().Context().Return(ctx)
 					manager.EXPECT().CurrentTarget().Return(t, nil)
 					manager.EXPECT().ClientConfig(ctx, t).Return(config, nil)
@@ -145,7 +145,7 @@ users: null
 			It("should fail to complete options when the target is empty", func() {
 				currentTarget := target.NewTarget("", "", "", "")
 
-				factory.EXPECT().Manager().Return(manager, nil)
+				factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 				manager.EXPECT().CurrentTarget().Return(currentTarget, nil)
 
 				Expect(options.Complete(factory, nil, nil)).To(MatchError(target.ErrNoGardenTargeted))

@@ -122,9 +122,9 @@ Find more information at: https://github.com/gardener/gardenctl-v2/blob/master/R
 	// add subcommands
 	sshCmd := cmdssh.NewCmdSSH(f, cmdssh.NewSSHOptions(ioStreams))
 	sshpatchCmd := cmdsshpatch.NewCmdSSHPatch(f, ioStreams)
-	targetCmd := cmdtarget.NewCmdTarget(f, ioStreams, &f.KubeconfigAccessLevel)
-	kubectlEnvCmd := cmdkubectl.NewCmdKubectlEnv(f, ioStreams, &f.KubeconfigAccessLevel)
-	kubeconfigCmd := kubeconfig.NewCmdKubeconfig(f, ioStreams, &f.KubeconfigAccessLevel)
+	targetCmd := cmdtarget.NewCmdTarget(f, ioStreams)
+	kubectlEnvCmd := cmdkubectl.NewCmdKubectlEnv(f, ioStreams)
+	kubeconfigCmd := kubeconfig.NewCmdKubeconfig(f, ioStreams)
 
 	cmd.AddCommand(sshCmd)
 	cmd.AddCommand(sshpatchCmd)

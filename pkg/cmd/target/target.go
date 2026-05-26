@@ -24,10 +24,11 @@ import (
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
-// NewCmdTarget returns a new target command. accessLevel is bound to the
-// --access-level persistent flag so its value is available on this
-// command and all of its subcommands.
-func NewCmdTarget(f util.Factory, ioStreams util.IOStreams, accessLevel *config.KubeconfigAccessLevel) *cobra.Command {
+// NewCmdTarget returns a new target command. The --access-level persistent
+// flag binds to the parent's options field, subcommands read it via
+// readAccessLevel(cmd) in their Complete since cobra walks up the parent
+// chain when resolving inherited persistent flags.
+func NewCmdTarget(f util.Factory, ioStreams util.IOStreams) *cobra.Command {
 	o := NewTargetOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:   "target",
@@ -54,9 +55,27 @@ gardenctl target value/that/matches/pattern --control-plane`,
 
 	f.TargetFlags().AddFlags(cmd.Flags())
 	flags.RegisterCompletionFuncsForTargetFlags(cmd, f, ioStreams, cmd.Flags())
-	flags.AddKubeconfigAccessLevelFlag(cmd, accessLevel)
+	flags.AddKubeconfigAccessLevelFlag(cmd, &o.AccessLevel)
 
 	return cmd
+}
+
+// readAccessLevel returns the value of the inherited --access-level persistent
+// flag, or empty when the flag is not bound (e.g. in tests). The storage
+// itself lives on the parent NewCmdTarget's TargetOptions.AccessLevel field.
+// Subcommands have their own TargetOptions instance and read the parent's
+// value through cobra's persistent-flag inheritance.
+func readAccessLevel(cmd *cobra.Command) config.KubeconfigAccessLevel {
+	flag := cmd.Flag("access-level")
+	if flag == nil {
+		return ""
+	}
+
+	if al, ok := flag.Value.(*config.KubeconfigAccessLevel); ok {
+		return *al
+	}
+
+	return ""
 }
 
 // TargetKind is representing the type of things that can be targeted
@@ -119,6 +138,9 @@ type TargetOptions struct {
 	Kind TargetKind
 	// TargetName is the object name of the targeted kind
 	TargetName string
+	// AccessLevel is the value bound to the --access-level persistent flag on
+	// NewCmdTarget. Subcommands read the same value through readAccessLevel(cmd).
+	AccessLevel config.KubeconfigAccessLevel
 }
 
 // NewTargetOptions returns initialized TargetOptions.
@@ -131,7 +153,11 @@ func NewTargetOptions(ioStreams util.IOStreams) *TargetOptions {
 }
 
 // Complete adapts from the command line args to the data required.
-func (o *TargetOptions) Complete(f util.Factory, _ *cobra.Command, args []string) error {
+func (o *TargetOptions) Complete(f util.Factory, cmd *cobra.Command, args []string) error {
+	// Subcommands have their own TargetOptions instance; pull the inherited
+	// --access-level value back in here so Run can thread it to f.Manager.
+	o.AccessLevel = readAccessLevel(cmd)
+
 	if len(args) > 0 {
 		if o.Kind == "" {
 			o.Kind = TargetKindPattern
@@ -189,7 +215,7 @@ func (o *TargetOptions) Validate() error {
 
 // Run executes the command.
 func (o *TargetOptions) Run(f util.Factory) error {
-	manager, err := f.Manager()
+	manager, err := f.Manager(target.WithAccessLevel(o.AccessLevel))
 	if err != nil {
 		return err
 	}

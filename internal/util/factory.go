@@ -48,8 +48,10 @@ type Factory interface {
 	// The session ID is derived from the GCTL_SESSION_ID environment variable,
 	// or extracted from TERM_SESSION_ID as a fallback.
 	GetSessionID() (string, error)
-	// Manager returns the target manager used to read and change the currently targeted system.
-	Manager() (target.Manager, error)
+	// Manager returns the target manager used to read and change the currently
+	// targeted system. Commands that bind --access-level should pass
+	// target.WithAccessLevel(o.AccessLevel), the rest can call this with no options.
+	Manager(opts ...target.ManagerOption) (target.Manager, error)
 	// PublicIPs returns the current host's public IP addresses. It's
 	// recommended to provide a context with a timeout/deadline. The
 	// returned slice can contain IPv6, IPv4 or both, in no particular
@@ -76,8 +78,6 @@ type FactoryImpl struct {
 	// if empty.
 	ConfigFile string
 
-	KubeconfigAccessLevel config.KubeconfigAccessLevel
-
 	// targetFlags can be used to completely override the target configuration
 	// stored on the filesystem via a CLI flags.
 	targetFlags target.TargetFlags
@@ -96,7 +96,7 @@ func (f *FactoryImpl) Context() context.Context {
 	return context.Background()
 }
 
-func (f *FactoryImpl) Manager() (target.Manager, error) {
+func (f *FactoryImpl) Manager(opts ...target.ManagerOption) (target.Manager, error) {
 	cfg, err := config.LoadFromFile(f.ConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
@@ -135,7 +135,7 @@ func (f *FactoryImpl) Manager() (target.Manager, error) {
 	targetProvider := target.NewTargetProvider(filepath.Join(sessionDirectory, "target.yaml"), f.targetFlags)
 	clientProvider := internalclient.NewProvider()
 
-	return target.NewManager(cfg, targetProvider, clientProvider, sessionDirectory, f.KubeconfigAccessLevel)
+	return target.NewManager(cfg, targetProvider, clientProvider, sessionDirectory, opts...)
 }
 
 func (f *FactoryImpl) GardenHomeDir() string {

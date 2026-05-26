@@ -94,7 +94,7 @@ var _ = Describe("Env Commands - Options", func() {
 			})
 
 			It("should complete options for providerType kubernetes", func() {
-				factory.EXPECT().Manager().Return(manager, nil)
+				factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 				manager.EXPECT().SessionDir().Return(sessionDir)
 				manager.EXPECT().Configuration().Return(cfg)
 				Expect(options.Template).To(BeNil())
@@ -157,7 +157,7 @@ var _ = Describe("Env Commands - Options", func() {
 				config = &clientcmd.DirectClientConfig{}
 
 				factory.EXPECT().Context().Return(ctx)
-				factory.EXPECT().Manager().Return(manager, nil)
+				factory.EXPECT().Manager(gomock.Any()).Return(manager, nil)
 			})
 
 			Context("when the command runs successfully", func() {
