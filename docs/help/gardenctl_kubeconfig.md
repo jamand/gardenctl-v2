@@ -9,7 +9,7 @@ gardenctl kubeconfig [flags]
 ### Examples
 
 ```
-# Print the kubeconfig for the current target 
+# Print the kubeconfig for the current target
 gardenctl kubeconfig
 
 # Print the kubeconfig for the current target in json format

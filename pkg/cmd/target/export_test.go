@@ -7,3 +7,5 @@ SPDX-License-Identifier: Apache-2.0
 package target
 
 var ValidTargetArgsFunction = validTargetArgsFunction
+
+var ReadAccessLevel = readAccessLevel

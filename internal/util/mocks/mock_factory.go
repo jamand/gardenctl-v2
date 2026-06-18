@@ -108,18 +108,22 @@ func (mr *MockFactoryMockRecorder) GetSessionID() *gomock.Call {
 }
 
 // Manager mocks base method.
-func (m *MockFactory) Manager() (target.Manager, error) {
+func (m *MockFactory) Manager(arg0 ...target.ManagerOption) (target.Manager, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Manager")
+	varargs := []interface{}{}
+	for _, a := range arg0 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Manager", varargs...)
 	ret0, _ := ret[0].(target.Manager)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Manager indicates an expected call of Manager.
-func (mr *MockFactoryMockRecorder) Manager() *gomock.Call {
+func (mr *MockFactoryMockRecorder) Manager(arg0 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Manager", reflect.TypeOf((*MockFactory)(nil).Manager))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Manager", reflect.TypeOf((*MockFactory)(nil).Manager), arg0...)
 }
 
 // PublicIPs mocks base method.

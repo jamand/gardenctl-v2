@@ -127,12 +127,24 @@ type managerImpl struct {
 	targetProvider   TargetProvider
 	clientProvider   internalclient.Provider
 	sessionDirectory string
-	// flagAccessLevel is the value of the global --access-level flag.
-	// Empty when unset. Takes precedence over per-garden config defaults.
+	// flagAccessLevel is the per-invocation override (e.g. --access-level). Empty
+	// when the caller hasn't asked for a specific level; takes precedence over
+	// the per-garden config defaults when resolving the effective level.
 	flagAccessLevel config.KubeconfigAccessLevel
 }
 
 var _ Manager = &managerImpl{}
+
+// ManagerOption configures optional behavior of a manager created by NewManager.
+type ManagerOption func(*managerImpl)
+
+// WithAccessLevel sets the per-invocation access-level override the manager
+// applies when generating kubeconfigs (both the session symlink and explicit
+// ClientConfig calls). Empty means gardenctl has no opinion and lets
+// gardenlogin's own default apply.
+func WithAccessLevel(level config.KubeconfigAccessLevel) ManagerOption {
+	return func(m *managerImpl) { m.flagAccessLevel = level }
+}
 
 func newGardenClient(name string, config *config.Config, provider internalclient.Provider) (clientgarden.Client, error) {
 	clientConfig, err := config.ClientConfig(name)
@@ -153,17 +165,23 @@ func newGardenClient(name string, config *config.Config, provider internalclient
 	return clientgarden.NewClient(clientConfig, client, garden.Name), nil
 }
 
-// NewManager returns a new manager. flagAccessLevel is the value of the global
-// --access-level flag (empty when unset); the manager combines it with
-// per-garden config defaults when resolving the effective level for kubeconfig requests.
-func NewManager(config *config.Config, targetProvider TargetProvider, clientProvider internalclient.Provider, sessionDirectory string, flagAccessLevel config.KubeconfigAccessLevel) (Manager, error) {
-	return &managerImpl{
+// NewManager returns a new manager. Use WithAccessLevel to configure a
+// per-invocation access-level override. When no option is supplied,
+// gardenctl defers to per-garden config defaults and ultimately to
+// gardenlogin's own default.
+func NewManager(config *config.Config, targetProvider TargetProvider, clientProvider internalclient.Provider, sessionDirectory string, opts ...ManagerOption) (Manager, error) {
+	m := &managerImpl{
 		config:           config,
 		targetProvider:   targetProvider,
 		clientProvider:   clientProvider,
 		sessionDirectory: sessionDirectory,
-		flagAccessLevel:  flagAccessLevel,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m, nil
 }
 
 // AccessScope identifies which per-scope default applies when resolving the
@@ -557,10 +575,6 @@ func (m *managerImpl) TargetMatchPattern(ctx context.Context, tf TargetFlags, va
 	}
 
 	tb.Init(currentTarget)
-
-	if err != nil {
-		return err
-	}
 
 	if tm.Project != "" && tm.Namespace != "" {
 		return fmt.Errorf("project %q and Namespace %q set in target match value. It is forbidden to have both values set", tm.Project, tm.Namespace)

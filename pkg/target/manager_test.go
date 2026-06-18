@@ -88,7 +88,7 @@ func cloneTarget(t target.Target) target.Target {
 func createTestManager(t target.Target, cfg *config.Config, clientProvider internalclient.Provider) (target.Manager, target.TargetProvider) {
 	targetProvider := fake.NewFakeTargetProvider(cloneTarget(t))
 
-	manager, err := target.NewManager(cfg, targetProvider, clientProvider, sessionDir, "")
+	manager, err := target.NewManager(cfg, targetProvider, clientProvider, sessionDir)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	ExpectWithOffset(1, manager).NotTo(BeNil())
 
@@ -762,7 +762,7 @@ var _ = Describe("Target Manager", func() {
 			}
 
 			tp := fake.NewFakeTargetProvider(target.NewTarget(gardenName, "", "", ""))
-			m, err := target.NewManager(cfg, tp, nil, sessionDir, flagLevel)
+			m, err := target.NewManager(cfg, tp, nil, sessionDir, target.WithAccessLevel(flagLevel))
 			Expect(err).NotTo(HaveOccurred())
 
 			return m
@@ -817,6 +817,33 @@ var _ = Describe("Target Manager", func() {
 		})
 	})
 
+	Describe("NewManager options", func() {
+		const gardenName = "g1"
+
+		newManager := func(opts ...target.ManagerOption) target.Manager {
+			cfg := &config.Config{
+				Gardens: []config.Garden{{Name: gardenName, Kubeconfig: "kubeconfig"}},
+			}
+			tp := fake.NewFakeTargetProvider(target.NewTarget(gardenName, "", "", ""))
+			m, err := target.NewManager(cfg, tp, nil, sessionDir, opts...)
+			Expect(err).NotTo(HaveOccurred())
+
+			return m
+		}
+
+		It("WithAccessLevel sets the flag-level override seen by resolveAccessLevel", func() {
+			m := newManager(target.WithAccessLevel(config.KubeconfigAccessLevelViewer))
+			t := target.NewTarget(gardenName, "", "", "")
+			Expect(target.ResolveAccessLevel(m, t, target.AccessScopeShoots)).To(Equal(config.KubeconfigAccessLevelViewer))
+		})
+
+		It("leaves the flag-level override empty when no option is supplied", func() {
+			m := newManager()
+			t := target.NewTarget(gardenName, "", "", "")
+			Expect(target.ResolveAccessLevel(m, t, target.AccessScopeShoots)).To(BeEmpty())
+		})
+	})
+
 	Describe("EffectiveAccessLevel scope routing for managed-seed-backing shoots", func() {
 		const (
 			gardenName        = "g1"
@@ -843,7 +870,7 @@ var _ = Describe("Target Manager", func() {
 			provider.EXPECT().FromClientConfig(gomock.Eq(cc)).Return(fake.NewClientWithObjects(objs...), nil).AnyTimes()
 
 			tp := fake.NewFakeTargetProvider(target.NewTarget(gardenName, userProjectName, "", ""))
-			m, err := target.NewManager(cfg, tp, provider, sessionDir, "")
+			m, err := target.NewManager(cfg, tp, provider, sessionDir)
 			Expect(err).NotTo(HaveOccurred())
 
 			return m

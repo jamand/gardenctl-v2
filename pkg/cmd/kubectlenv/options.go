@@ -45,7 +45,7 @@ type options struct {
 	// (empty when unset). Only consulted in non-symlink mode; in symlink mode
 	// the existing session kubeconfig is reused as-is and Run warns if
 	// AccessLevel was set anyway.
-	AccessLevel *config.KubeconfigAccessLevel
+	AccessLevel config.KubeconfigAccessLevel
 }
 
 // Complete adapts from the command line args to the data required.
@@ -66,7 +66,7 @@ func (o *options) Complete(f util.Factory, cmd *cobra.Command, _ []string) error
 		return err
 	}
 
-	manager, err := f.Manager()
+	manager, err := f.Manager(target.WithAccessLevel(o.AccessLevel))
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (o *options) AddFlags(flags *pflag.FlagSet) {
 func (o *options) Run(f util.Factory) error {
 	ctx := f.Context()
 
-	manager, err := f.Manager()
+	manager, err := f.Manager(target.WithAccessLevel(o.AccessLevel))
 	if err != nil {
 		return err
 	}
@@ -114,11 +114,11 @@ func (o *options) Run(f util.Factory) error {
 	// In symlink mode kubectl-env just points KUBECONFIG at the existing session
 	// kubeconfig, so --access-level has no effect here - warn the user so they
 	// know to re-run `gardenctl target` with the flag instead.
-	if o.Symlink && o.AccessLevel != nil && *o.AccessLevel != "" {
+	if o.Symlink && o.AccessLevel != "" {
 		fmt.Fprintf(o.IOStreams.ErrOut,
 			"Warning: --access-level has no effect with linkKubeconfig: true (the default). "+
 				"Re-run `gardenctl target ... --access-level=%s` to change the access level of the session kubeconfig.\n",
-			*o.AccessLevel)
+			o.AccessLevel)
 	}
 
 	data := map[string]interface{}{
