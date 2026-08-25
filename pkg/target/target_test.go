@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
@@ -22,6 +23,24 @@ var _ = Describe("Target", func() {
 			Expect(t.ProjectName()).To(Equal("b"))
 			Expect(t.SeedName()).To(Equal("c"))
 			Expect(t.ShootName()).To(Equal("d"))
+		})
+
+		It("should keep the access level across With* copies and DeepCopy", func() {
+			t := target.NewTarget("a", "b", "", "d").WithAccessLevel(config.KubeconfigAccessLevelViewer)
+
+			Expect(t.WithShootName("other").AccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+			Expect(t.DeepCopy().AccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+			Expect(t.WithAccessLevel("").AccessLevel()).To(BeEmpty())
+			// the original is not mutated by With* copies
+			Expect(t.AccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+		})
+
+		It("should validate the access level", func() {
+			base := target.NewTarget("a", "b", "", "d")
+
+			Expect(base.WithAccessLevel(config.KubeconfigAccessLevelAdmin).Validate()).To(Succeed())
+			// e.g. hand-edited target.yaml
+			Expect(base.WithAccessLevel("root").Validate()).NotTo(Succeed())
 		})
 
 		It("should validate", func() {

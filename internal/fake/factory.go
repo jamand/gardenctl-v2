@@ -48,9 +48,6 @@ type Factory struct {
 
 	// SessionID is the session identifier for this factory instance.
 	SessionID string
-
-	// KubeconfigAccessLevel mirrors FactoryImpl.KubeconfigAccessLevel.
-	KubeconfigAccessLevel config.KubeconfigAccessLevel
 }
 
 var _ util.Factory = &Factory{}
@@ -92,7 +89,7 @@ func (f *Factory) Manager() (target.Manager, error) {
 
 	sessionDir := os.TempDir()
 
-	return target.NewManager(f.Config, f.TargetProviderImpl, f.ClientProviderImpl, sessionDir, f.KubeconfigAccessLevel)
+	return target.NewManager(f.Config, f.TargetProviderImpl, f.ClientProviderImpl, sessionDir, f.TargetFlagsImpl.AccessLevel())
 }
 
 func (f *Factory) Context() context.Context {

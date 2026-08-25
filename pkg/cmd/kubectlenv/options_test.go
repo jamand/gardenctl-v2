@@ -48,6 +48,7 @@ var _ = Describe("Env Commands - Options", func() {
 		BeforeEach(func() {
 			ctrl = gomock.NewController(GinkgoT())
 			factory = utilmocks.NewMockFactory(ctrl)
+			factory.EXPECT().TargetFlags().Return(target.NewTargetFlags("", "", "", "", false)).AnyTimes()
 			manager = targetmocks.NewMockManager(ctrl)
 			options = kubectlenv.NewOptions()
 			cmdPath = "gardenctl provider-env"

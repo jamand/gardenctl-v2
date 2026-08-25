@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
 
+	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
@@ -22,6 +23,7 @@ func expectEqualTargets(actual, expected target.Target) {
 	ExpectWithOffset(1, actual.SeedName()).To(Equal(expected.SeedName()))
 	ExpectWithOffset(1, actual.ShootName()).To(Equal(expected.ShootName()))
 	ExpectWithOffset(1, actual.ControlPlane()).To(Equal(expected.ControlPlane()))
+	ExpectWithOffset(1, actual.AccessLevel()).To(Equal(expected.AccessLevel()))
 }
 
 func mustParseTargetFlags(args []string) target.TargetFlags {
@@ -29,6 +31,15 @@ func mustParseTargetFlags(args []string) target.TargetFlags {
 	flags := &pflag.FlagSet{}
 	tf.AddFlags(flags)
 	ExpectWithOffset(1, flags.Parse(args)).To(Succeed())
+
+	return tf
+}
+
+// newTargetFlagsWithAccessLevel builds target flags with the access level set,
+// as the --access-level/--admin/--viewer flag set would via AccessLevelVar.
+func newTargetFlagsWithAccessLevel(garden, project, seed, shoot string, controlPlane bool, level config.KubeconfigAccessLevel) target.TargetFlags {
+	tf := target.NewTargetFlags(garden, project, seed, shoot, controlPlane)
+	*tf.AccessLevelVar() = level
 
 	return tf
 }
@@ -451,6 +462,51 @@ var _ = Describe("Dynamic Target Provider", func() {
 		Expect(readBack.ProjectName()).To(BeEmpty())
 		Expect(readBack.ShootName()).To(BeEmpty())
 	})
+
+	DescribeTable(
+		"should overlay the access level like other shoot-bound modifier state",
+		func(tf target.TargetFlags, expected target.Target) {
+			persisted := target.NewTarget("mygarden", "myproject", "", "myshoot").
+				WithAccessLevel(config.KubeconfigAccessLevelViewer)
+			Expect(provider.Write(persisted)).To(Succeed())
+
+			dtp := target.NewTargetProvider(tmpFile.Name(), tf)
+
+			readBack, err := dtp.Read()
+			Expect(err).NotTo(HaveOccurred())
+			expectEqualTargets(readBack, expected)
+
+			// overlays must be idempotent (#744): a second read yields the same target
+			again, err := dtp.Read()
+			Expect(err).NotTo(HaveOccurred())
+			expectEqualTargets(again, readBack)
+		},
+		Entry(
+			"no flags keep the persisted level",
+			target.NewTargetFlags("", "", "", "", false),
+			target.NewTarget("mygarden", "myproject", "", "myshoot").WithAccessLevel(config.KubeconfigAccessLevelViewer),
+		),
+		Entry(
+			"an explicit level wins over the persisted one",
+			newTargetFlagsWithAccessLevel("", "", "", "", false, config.KubeconfigAccessLevelAdmin),
+			target.NewTarget("mygarden", "myproject", "", "myshoot").WithAccessLevel(config.KubeconfigAccessLevelAdmin),
+		),
+		Entry(
+			"a path selector clears the stale level",
+			target.NewTargetFlags("", "", "", "newshoot", false),
+			target.NewTarget("mygarden", "myproject", "", "newshoot"),
+		),
+		Entry(
+			"a path selector with an explicit level applies the level to the new path",
+			newTargetFlagsWithAccessLevel("", "", "", "newshoot", false, config.KubeconfigAccessLevelAdmin),
+			target.NewTarget("mygarden", "myproject", "", "newshoot").WithAccessLevel(config.KubeconfigAccessLevelAdmin),
+		),
+		Entry(
+			"--control-plane clears the stale level (the seed cluster is a different scope)",
+			target.NewTargetFlags("", "", "", "", true),
+			target.NewTarget("mygarden", "myproject", "", "myshoot").WithControlPlane(true),
+		),
+	)
 
 	It("should write changes as expected", func() {
 		// prepare target

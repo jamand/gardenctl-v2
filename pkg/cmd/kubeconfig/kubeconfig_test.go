@@ -67,13 +67,12 @@ var _ = Describe("Kubeconfig Command - Options", func() {
 
 			manager.EXPECT().CurrentTarget().Return(t, nil)
 			manager.EXPECT().ClientConfig(ctx, t).Return(config, nil)
-			manager.EXPECT().EffectiveAccessLevel(ctx, t).Return(gardenconfig.KubeconfigAccessLevel(""), false, nil)
 
 			targetFlags := target.NewTargetFlags("", "", "", "", false)
 			factory.EXPECT().TargetFlags().Return(targetFlags).AnyTimes()
 
 			streams, _, out, _ = util.NewTestIOStreams()
-			cmd = cmdkubeconfig.NewCmdKubeconfig(factory, streams, new(gardenconfig.KubeconfigAccessLevel))
+			cmd = cmdkubeconfig.NewCmdKubeconfig(factory, streams)
 		})
 
 		It("should execute the kubeconfig subcommand", func() {
@@ -110,23 +109,22 @@ users: null
 				factory.EXPECT().Context().Return(ctx)
 				manager.EXPECT().CurrentTarget().Return(t, nil)
 				manager.EXPECT().ClientConfig(ctx, t).Return(config, nil)
-				manager.EXPECT().EffectiveAccessLevel(ctx, t).Return(gardenconfig.KubeconfigAccessLevel(""), false, nil)
 
 				Expect(options.Complete(factory, nil, nil)).To(Succeed())
 				Expect(options.PrintObject).NotTo(BeNil())
 				Expect(options.RawConfig).To(Equal(&rawConfig))
 			})
 
-			DescribeTable("prints the access level on stderr when applicable to the target",
-				func(level gardenconfig.KubeconfigAccessLevel, applies bool, expectNotice bool) {
+			DescribeTable("prints the access level on stderr when the target carries one",
+				func(level gardenconfig.KubeconfigAccessLevel, expectNotice bool) {
 					streams, _, _, errOut := util.NewTestIOStreams()
 					options.IOStreams = streams
+					currentTarget := t.WithAccessLevel(level)
 
 					factory.EXPECT().Manager().Return(manager, nil)
 					factory.EXPECT().Context().Return(ctx)
-					manager.EXPECT().CurrentTarget().Return(t, nil)
-					manager.EXPECT().ClientConfig(ctx, t).Return(config, nil)
-					manager.EXPECT().EffectiveAccessLevel(ctx, t).Return(level, applies, nil)
+					manager.EXPECT().CurrentTarget().Return(currentTarget, nil)
+					manager.EXPECT().ClientConfig(ctx, currentTarget).Return(config, nil)
 
 					Expect(options.Complete(factory, nil, nil)).To(Succeed())
 
@@ -136,10 +134,10 @@ users: null
 						Expect(errOut.String()).To(BeEmpty())
 					}
 				},
-				Entry("admin: shown", gardenconfig.KubeconfigAccessLevelAdmin, true, true),
-				Entry("viewer: shown", gardenconfig.KubeconfigAccessLevelViewer, true, true),
-				Entry("auto: shown", gardenconfig.KubeconfigAccessLevelAuto, true, true),
-				Entry("gardenctl did not decide a level: silent", gardenconfig.KubeconfigAccessLevel(""), false, false),
+				Entry("admin: shown", gardenconfig.KubeconfigAccessLevelAdmin, true),
+				Entry("viewer: shown", gardenconfig.KubeconfigAccessLevelViewer, true),
+				Entry("auto: shown", gardenconfig.KubeconfigAccessLevelAuto, true),
+				Entry("no level on the target: silent", gardenconfig.KubeconfigAccessLevel(""), false),
 			)
 
 			It("should fail to complete options when the target is empty", func() {

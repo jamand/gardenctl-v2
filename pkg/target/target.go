@@ -38,6 +38,9 @@ type Target interface {
 	ShootName() string
 	// ControlPlane returns true if shoot control plane is targeted.
 	ControlPlane() bool
+	// AccessLevel returns the kubeconfig access level resolved for this target
+	// when it was written (empty when gardenlogin's own default applies).
+	AccessLevel() config.KubeconfigAccessLevel
 	// WithGardenName returns a copy of the target with the garden name updated.
 	// The returned target can be invalid.
 	WithGardenName(name string) Target
@@ -53,6 +56,9 @@ type Target interface {
 	// WithControlPlane returns a copy of the target with the control plane flag updated.
 	// The returned target can be invalid.
 	WithControlPlane(controlPlane bool) Target
+	// WithAccessLevel returns a copy of the target with the access level updated.
+	// The returned target can be invalid.
+	WithAccessLevel(level config.KubeconfigAccessLevel) Target
 	// Validate checks for semantical correctness of the target, without
 	// actually connecting to the targeted clusters.
 	Validate() error
@@ -66,11 +72,12 @@ type Target interface {
 }
 
 type targetImpl struct {
-	Garden           string `json:"garden,omitempty"`
-	Project          string `json:"project,omitempty"`
-	Seed             string `json:"seed,omitempty"`
-	Shoot            string `json:"shoot,omitempty"`
-	ControlPlaneFlag bool   `json:"controlPlane,omitempty"`
+	Garden           string                       `json:"garden,omitempty"`
+	Project          string                       `json:"project,omitempty"`
+	Seed             string                       `json:"seed,omitempty"`
+	Shoot            string                       `json:"shoot,omitempty"`
+	ControlPlaneFlag bool                         `json:"controlPlane,omitempty"`
+	AccessLevelValue config.KubeconfigAccessLevel `json:"accessLevel,omitempty"`
 }
 
 var _ Target = &targetImpl{}
@@ -87,8 +94,10 @@ func NewTarget(gardenName, projectName, seedName, shootName string) Target {
 	}
 }
 
-func newTargetImpl(gardenName, projectName, seedName, shootName string, controlPlane bool) *targetImpl {
-	return &targetImpl{Garden: gardenName, Project: projectName, Seed: seedName, Shoot: shootName, ControlPlaneFlag: controlPlane}
+// copy returns a copy of the target (all fields are value types).
+func (t *targetImpl) copy() *targetImpl {
+	c := *t
+	return &c
 }
 
 // Validate checks that the target is not malformed and all required
@@ -130,6 +139,10 @@ func (t *targetImpl) Validate() error {
 		}
 	}
 
+	if err := t.AccessLevelValue.Validate(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -158,34 +171,63 @@ func (t *targetImpl) ControlPlane() bool {
 	return t.ControlPlaneFlag
 }
 
+// AccessLevel returns the kubeconfig access level resolved for this target.
+func (t *targetImpl) AccessLevel() config.KubeconfigAccessLevel {
+	return t.AccessLevelValue
+}
+
 // WithGardenName returns a copy of the target with the garden name updated.
 // The returned target can be invalid.
 func (t *targetImpl) WithGardenName(name string) Target {
-	return newTargetImpl(name, t.Project, t.Seed, t.Shoot, t.ControlPlaneFlag)
+	c := t.copy()
+	c.Garden = name
+
+	return c
 }
 
 // WithProjectName returns a copy of the target with the project name updated.
 // The returned target can be invalid.
 func (t *targetImpl) WithProjectName(name string) Target {
-	return newTargetImpl(t.Garden, name, t.Seed, t.Shoot, t.ControlPlaneFlag)
+	c := t.copy()
+	c.Project = name
+
+	return c
 }
 
 // WithSeedName returns a copy of the target with the seed name updated.
 // The returned target can be invalid.
 func (t *targetImpl) WithSeedName(name string) Target {
-	return newTargetImpl(t.Garden, t.Project, name, t.Shoot, t.ControlPlaneFlag)
+	c := t.copy()
+	c.Seed = name
+
+	return c
 }
 
 // WithShootName returns a copy of the target with the shoot name updated.
 // The returned target can be invalid.
 func (t *targetImpl) WithShootName(name string) Target {
-	return newTargetImpl(t.Garden, t.Project, t.Seed, name, t.ControlPlaneFlag)
+	c := t.copy()
+	c.Shoot = name
+
+	return c
 }
 
 // WithControlPlane returns a copy of the target with the control plane flag updated.
 // The returned target can be invalid.
 func (t *targetImpl) WithControlPlane(controlPlane bool) Target {
-	return newTargetImpl(t.Garden, t.Project, t.Seed, t.Shoot, controlPlane)
+	c := t.copy()
+	c.ControlPlaneFlag = controlPlane
+
+	return c
+}
+
+// WithAccessLevel returns a copy of the target with the access level updated.
+// The returned target can be invalid.
+func (t *targetImpl) WithAccessLevel(level config.KubeconfigAccessLevel) Target {
+	c := t.copy()
+	c.AccessLevelValue = level
+
+	return c
 }
 
 func (t *targetImpl) IsEmpty() bool {
@@ -209,11 +251,5 @@ func (t *targetImpl) AsListOption() client.ListOption {
 }
 
 func (t *targetImpl) DeepCopy() Target {
-	return &targetImpl{
-		Garden:           t.Garden,
-		Project:          t.Project,
-		Seed:             t.Seed,
-		Shoot:            t.Shoot,
-		ControlPlaneFlag: t.ControlPlaneFlag,
-	}
+	return t.copy()
 }

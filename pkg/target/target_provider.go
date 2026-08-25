@@ -177,6 +177,8 @@ func combine(cliFlags TargetFlags, patternFlags TargetFlags, gardenNameForCompar
 		seedName:     combineStringField(cliFlags.SeedName(), patternFlags.SeedName()),
 		shootName:    combineStringField(cliFlags.ShootName(), patternFlags.ShootName()),
 		controlPlane: NewBoolFlag(false),
+		// Patterns cannot express an access level; only the CLI flag can set it.
+		accessLevel: cliFlags.AccessLevel(),
 	}
 
 	var conflicts []string
@@ -304,9 +306,20 @@ func merge(t Target, tf TargetFlags) (Target, error) {
 		newTarget = newTarget.WithControlPlane(false)
 	}
 
+	// A path selector or --control-plane changes the targeted cluster, so a
+	// stale access level must not carry over; the new scope's defaults apply.
+	if pathFlagProvided || tf.ControlPlane().Provided() {
+		newTarget = newTarget.WithAccessLevel("")
+	}
+
 	// Explicit --control-plane wins.
 	if tf.ControlPlane().Provided() {
 		newTarget = newTarget.WithControlPlane(tf.ControlPlane().Value())
+	}
+
+	// Explicit --access-level/--admin/--viewer wins.
+	if tf.AccessLevel() != "" {
+		newTarget = newTarget.WithAccessLevel(tf.AccessLevel())
 	}
 
 	if err := newTarget.Validate(); err != nil {

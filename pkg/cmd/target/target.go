@@ -19,15 +19,12 @@ import (
 	"github.com/gardener/gardenctl-v2/internal/util"
 	"github.com/gardener/gardenctl-v2/pkg/ac"
 	"github.com/gardener/gardenctl-v2/pkg/cmd/base"
-	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/flags"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
-// NewCmdTarget returns a new target command. accessLevel is bound to the
-// --access-level persistent flag so its value is available on this
-// command and all of its subcommands.
-func NewCmdTarget(f util.Factory, ioStreams util.IOStreams, accessLevel *config.KubeconfigAccessLevel) *cobra.Command {
+// NewCmdTarget returns a new target command.
+func NewCmdTarget(f util.Factory, ioStreams util.IOStreams) *cobra.Command {
 	o := NewTargetOptions(ioStreams)
 	cmd := &cobra.Command{
 		Use:   "target",
@@ -54,7 +51,7 @@ gardenctl target value/that/matches/pattern --control-plane`,
 
 	f.TargetFlags().AddFlags(cmd.Flags())
 	flags.RegisterCompletionFuncsForTargetFlags(cmd, f, ioStreams, cmd.Flags())
-	flags.AddKubeconfigAccessLevelFlag(cmd, accessLevel)
+	flags.AddKubeconfigAccessLevelFlag(cmd, f.TargetFlags().AccessLevelVar())
 
 	return cmd
 }
@@ -249,14 +246,8 @@ func (o *TargetOptions) Run(f util.Factory) error {
 	if o.Output == "" {
 		var levelSuffix string
 
-		level, ok, lvlErr := manager.EffectiveAccessLevel(ctx, currentTarget)
-		switch {
-		case lvlErr != nil:
-			// Display-path soft-warn: the kubeconfig itself is already correct
-			// (ClientConfig either succeeded with the right scope or the command
-			// has already errored out).
-			fmt.Fprintf(o.IOStreams.ErrOut, "Warning: could not determine effective access level: %v\n", lvlErr)
-		case ok:
+		// the written target carries the level the session kubeconfig was rendered with
+		if level := currentTarget.AccessLevel(); level != "" {
 			levelSuffix = fmt.Sprintf(" (access level: %s)", level)
 		}
 

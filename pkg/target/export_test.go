@@ -19,7 +19,12 @@ func ResolvePatternOverlay(ctx context.Context, m Manager, tf TargetFlags, persi
 	return m.(*managerImpl).resolvePatternOverlay(ctx, tf, persistedTarget, value)
 }
 
-// ResolveAccessLevel exposes managerImpl.resolveAccessLevel for tests.
-func ResolveAccessLevel(m Manager, t Target, scope AccessScope) config.KubeconfigAccessLevel {
-	return m.(*managerImpl).resolveAccessLevel(t, scope)
+// ResolveAccessLevelForWrite exposes managerImpl.resolveAccessLevelForWrite for tests.
+func ResolveAccessLevelForWrite(ctx context.Context, m Manager, t Target) (config.KubeconfigAccessLevel, error) {
+	return m.(*managerImpl).resolveAccessLevelForWrite(ctx, t)
+}
+
+// EffectiveAccessLevel exposes managerImpl.effectiveAccessLevel for tests.
+func EffectiveAccessLevel(m Manager, t Target, scope AccessScope) config.KubeconfigAccessLevel {
+	return m.(*managerImpl).effectiveAccessLevel(t, scope)
 }

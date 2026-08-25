@@ -128,13 +128,13 @@ var _ = Describe("Target Command", func() {
 		})
 
 		It("should reject bad options", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 
 			Expect(cmd.RunE(cmd, nil)).NotTo(Succeed())
 		})
 
 		It("should reject control-plane flag without a shoot when targeting a garden", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 			Expect(cmd.Flags().Set("garden", gardenName)).To(Succeed())
 			Expect(cmd.Flags().Set("control-plane", "true")).To(Succeed())
 
@@ -142,7 +142,7 @@ var _ = Describe("Target Command", func() {
 		})
 
 		It("should reject control-plane flag without a shoot when targeting a project", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 			Expect(cmd.Flags().Set("garden", gardenName)).To(Succeed())
 			Expect(cmd.Flags().Set("project", projectName)).To(Succeed())
 			Expect(cmd.Flags().Set("control-plane", "true")).To(Succeed())
@@ -153,7 +153,7 @@ var _ = Describe("Target Command", func() {
 		DescribeTable("should allow --control-plane=false while targeting a garden",
 			func(startTarget target.Target) {
 				targetProvider.Target = startTarget
-				cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+				cmd := cmdtarget.NewCmdTarget(factory, streams)
 				Expect(cmd.Flags().Set("garden", gardenName)).To(Succeed())
 				Expect(cmd.Flags().Set("control-plane", "false")).To(Succeed())
 
@@ -288,7 +288,7 @@ var _ = Describe("Target Command", func() {
 
 		It("should clear the targeted control plane when the flag is explicitly false", func() {
 			targetProvider.Target = target.NewTarget(gardenName, projectName, "", shootName).WithControlPlane(true)
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 			Expect(cmd.Flags().Set("control-plane", "false")).To(Succeed())
 
 			Expect(cmd.RunE(cmd, []string{})).To(Succeed())
@@ -305,7 +305,7 @@ var _ = Describe("Target Command", func() {
 
 		It("should no-op when standalone control-plane clearing finds no control plane targeted", func() {
 			targetProvider.Target = target.NewTarget(gardenName, projectName, "", shootName)
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 			Expect(cmd.Flags().Set("control-plane", "false")).To(Succeed())
 
 			Expect(cmd.RunE(cmd, []string{})).To(Succeed())
@@ -371,7 +371,7 @@ var _ = Describe("Target Command", func() {
 		})
 
 		It("should be able to target via pattern matching", func() {
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 
 			// run command
 			Expect(cmd.RunE(cmd, []string{fmt.Sprintf("shoot--%s--%s", projectName, shootName)})).To(Succeed())
@@ -389,7 +389,7 @@ var _ = Describe("Target Command", func() {
 			cfg.Gardens[0].Patterns = append(cfg.Gardens[0].Patterns,
 				`^https://dashboard\.gardener\.cloud/seeds/(?P<seed>[^/]+)$`,
 			)
-			cmd := cmdtarget.NewCmdTarget(factory, streams, new(config.KubeconfigAccessLevel))
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
 
 			url := fmt.Sprintf("https://dashboard.gardener.cloud/seeds/%s", seedName)
 			Expect(cmd.RunE(cmd, []string{url})).To(Succeed())

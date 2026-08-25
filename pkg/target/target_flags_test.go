@@ -14,6 +14,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
 
@@ -94,5 +95,18 @@ var _ = Describe("Target Flags", func() {
 		Expect(t.SeedName()).To(BeEmpty())
 		Expect(t.ShootName()).To(Equal("shoot"))
 		Expect(t.ControlPlane()).To(BeTrue())
+	})
+
+	It("should expose the access level flag value", func() {
+		tf := target.NewTargetFlags("", "", "", "", false)
+		Expect(tf.AccessLevel()).To(BeEmpty())
+		Expect(tf.IsEmpty()).To(BeTrue())
+
+		// AccessLevelVar is the binding point for the --access-level/--admin/
+		// --viewer flag set; writing through it must be visible to readers.
+		*tf.AccessLevelVar() = config.KubeconfigAccessLevelAdmin
+		Expect(tf.AccessLevel()).To(Equal(config.KubeconfigAccessLevelAdmin))
+		Expect(tf.IsEmpty()).To(BeFalse(), "a provided access level alone must not count as empty flags")
+		Expect(tf.ToTarget().AccessLevel()).To(Equal(config.KubeconfigAccessLevelAdmin))
 	})
 })

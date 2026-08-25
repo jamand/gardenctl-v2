@@ -17,7 +17,6 @@ import (
 
 	"github.com/gardener/gardenctl-v2/internal/util"
 	"github.com/gardener/gardenctl-v2/pkg/cmd/base"
-	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/env"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 )
@@ -41,11 +40,6 @@ type options struct {
 	Template env.Template
 	// Symlink indicates if KUBECONFIG environment variable should point to the session stable symlink
 	Symlink bool
-	// AccessLevel is the value bound to this command's --access-level flag
-	// (empty when unset). Only consulted in non-symlink mode; in symlink mode
-	// the existing session kubeconfig is reused as-is and Run warns if
-	// AccessLevel was set anyway.
-	AccessLevel *config.KubeconfigAccessLevel
 }
 
 // Complete adapts from the command line args to the data required.
@@ -111,14 +105,13 @@ func (o *options) Run(f util.Factory) error {
 		return target.ErrNoGardenTargeted
 	}
 
-	// In symlink mode kubectl-env just points KUBECONFIG at the existing session
-	// kubeconfig, so --access-level has no effect here - warn the user so they
-	// know to re-run `gardenctl target` with the flag instead.
-	if o.Symlink && o.AccessLevel != nil && *o.AccessLevel != "" {
+	// In symlink mode the existing session kubeconfig is reused as-is, so
+	// --access-level has no effect here - warn instead.
+	if accessLevel := f.TargetFlags().AccessLevel(); o.Symlink && accessLevel != "" {
 		fmt.Fprintf(o.IOStreams.ErrOut,
 			"Warning: --access-level has no effect with linkKubeconfig: true (the default). "+
 				"Re-run `gardenctl target ... --access-level=%s` to change the access level of the session kubeconfig.\n",
-			*o.AccessLevel)
+			accessLevel)
 	}
 
 	data := map[string]interface{}{

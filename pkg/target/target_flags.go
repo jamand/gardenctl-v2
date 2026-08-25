@@ -10,6 +10,8 @@ import (
 	"strconv"
 
 	"github.com/spf13/pflag"
+
+	"github.com/gardener/gardenctl-v2/pkg/config"
 )
 
 // TargetFlags represents the target cobra flags.
@@ -24,6 +26,11 @@ type TargetFlags interface {
 	ShootName() string
 	// ControlPlane returns the value and presence state that are tied to the corresponding cobra flag.
 	ControlPlane() BoolFlag
+	// AccessLevel returns the value that is tied to the corresponding cobra flag (empty when not provided).
+	AccessLevel() config.KubeconfigAccessLevel
+	// AccessLevelVar returns the binding point for the --access-level/--admin/--viewer
+	// flags, which are registered per command (see flags.AddKubeconfigAccessLevelFlag).
+	AccessLevelVar() *config.KubeconfigAccessLevel
 
 	// AddFlags binds all target configuration flags to a given flagset
 	AddFlags(flags *pflag.FlagSet)
@@ -72,6 +79,7 @@ type targetFlagsImpl struct {
 	seedName     string
 	shootName    string
 	controlPlane BoolFlag
+	accessLevel  config.KubeconfigAccessLevel
 }
 
 func (tf *targetFlagsImpl) GardenName() string {
@@ -92,6 +100,14 @@ func (tf *targetFlagsImpl) ShootName() string {
 
 func (tf *targetFlagsImpl) ControlPlane() BoolFlag {
 	return tf.controlPlane
+}
+
+func (tf *targetFlagsImpl) AccessLevel() config.KubeconfigAccessLevel {
+	return tf.accessLevel
+}
+
+func (tf *targetFlagsImpl) AccessLevelVar() *config.KubeconfigAccessLevel {
+	return &tf.accessLevel
 }
 
 func (tf *targetFlagsImpl) AddFlags(flags *pflag.FlagSet) {
@@ -124,11 +140,14 @@ func (tf *targetFlagsImpl) AddControlPlaneFlag(flags *pflag.FlagSet) {
 }
 
 func (tf *targetFlagsImpl) ToTarget() Target {
-	return NewTarget(tf.gardenName, tf.projectName, tf.seedName, tf.shootName).WithControlPlane(tf.ControlPlane().Value())
+	return NewTarget(tf.gardenName, tf.projectName, tf.seedName, tf.shootName).
+		WithControlPlane(tf.ControlPlane().Value()).
+		WithAccessLevel(tf.accessLevel)
 }
 
 func (tf *targetFlagsImpl) IsEmpty() bool {
-	return tf.gardenName == "" && tf.projectName == "" && tf.seedName == "" && tf.shootName == "" && !tf.ControlPlane().Provided()
+	return tf.gardenName == "" && tf.projectName == "" && tf.seedName == "" && tf.shootName == "" &&
+		!tf.ControlPlane().Provided() && tf.accessLevel == ""
 }
 
 func (tf *targetFlagsImpl) IsTargetValid() bool {

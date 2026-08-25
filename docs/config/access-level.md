@@ -45,7 +45,7 @@ gardenctl kubeconfig --access-level=auto           # explicit auto (no shorthand
 The shorthands and the full form are mutually exclusive - pass at most one.
 
 > [!NOTE]
-> Flag overrides apply only to the invocation they're passed to. They are not persisted on disk, so a subsequent `gardenctl kubeconfig` (without a flag) re-resolves from the per-garden config defaults, not from the flag you passed to an earlier `gardenctl target`. For persistent changes set them via `gardenctl config set-garden`. You may also repeat the flags on `gardenctl kubeconfig`.
+> The access level resolved by `gardenctl target` (flag or per-garden default) is stored on the target and governs the whole session: a subsequent `gardenctl kubeconfig` (without a flag) returns the same level as the session kubeconfig. It is re-resolved on every target change — retargeting without a flag falls back to the per-garden defaults, so a one-off `--admin` does not stick around. On read-only commands (`kubeconfig`, `kubectl-env`) the flags apply only to that invocation and never change the stored target.
 
 ## Scope resolution
 
