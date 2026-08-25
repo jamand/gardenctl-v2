@@ -110,7 +110,7 @@ func (o *options) Run(f util.Factory) error {
 	if accessLevel := f.TargetFlags().AccessLevel(); o.Symlink && accessLevel != "" {
 		fmt.Fprintf(o.IOStreams.ErrOut,
 			"Warning: --access-level has no effect with linkKubeconfig: true (the default). "+
-				"Re-run `gardenctl target ... --access-level=%s` to change the access level of the session kubeconfig.\n",
+				"Run `gardenctl target --access-level=%s` to change the access level of the session kubeconfig.\n",
 			accessLevel)
 	}
 

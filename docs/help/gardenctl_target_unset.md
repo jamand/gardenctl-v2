@@ -14,6 +14,9 @@ gardenctl target unset shoot
 
 # Unset garden. This will also unset a targeted project, shoot, seed and control plane
 gardenctl target unset garden
+
+# Unset the explicit access level so the per-garden defaults apply again
+gardenctl target unset access-level
 ```
 
 ### Options

@@ -32,13 +32,17 @@ func NewCmdUnset(f util.Factory, ioStreams util.IOStreams) *cobra.Command {
 gardenctl target unset shoot
 
 # Unset garden. This will also unset a targeted project, shoot, seed and control plane
-gardenctl target unset garden`,
+gardenctl target unset garden
+
+# Unset the explicit access level so the per-garden defaults apply again
+gardenctl target unset access-level`,
 		ValidArgs: []string{
 			string(TargetKindGarden),
 			string(TargetKindProject),
 			string(TargetKindSeed),
 			string(TargetKindShoot),
 			string(TargetKindControlPlane),
+			string(TargetKindAccessLevel),
 		},
 		RunE: base.WrapRunE(o, f),
 	}
@@ -63,7 +67,7 @@ func (o *UnsetOptions) Complete(_ util.Factory, _ *cobra.Command, args []string)
 	return nil
 }
 
-var AllTargetKinds = []TargetKind{TargetKindGarden, TargetKindProject, TargetKindSeed, TargetKindShoot, TargetKindPattern, TargetKindControlPlane}
+var AllTargetKinds = []TargetKind{TargetKindGarden, TargetKindProject, TargetKindSeed, TargetKindShoot, TargetKindPattern, TargetKindControlPlane, TargetKindAccessLevel}
 
 func ValidateKind(kind TargetKind) error {
 	for _, k := range AllTargetKinds {
@@ -116,6 +120,14 @@ func (o *UnsetOptions) Run(f util.Factory) error {
 		}
 
 		err = targetErr
+	case TargetKindAccessLevel:
+		var currentTarget targetlib.Target
+
+		currentTarget, err = manager.UnsetTargetAccessLevel(ctx)
+		if err == nil {
+			// unset drops the explicit level; a per-garden default may still apply
+			targetName = string(currentTarget.AccessLevel())
+		}
 	default:
 		err = errors.New("invalid kind")
 	}
@@ -124,9 +136,16 @@ func (o *UnsetOptions) Run(f util.Factory) error {
 		return err
 	}
 
-	if o.Kind == TargetKindControlPlane {
+	switch o.Kind {
+	case TargetKindControlPlane:
 		fmt.Fprintf(o.IOStreams.Out, "Successfully unset targeted control plane for %q\n", targetName)
-	} else {
+	case TargetKindAccessLevel:
+		if targetName != "" {
+			fmt.Fprintf(o.IOStreams.Out, "Successfully unset access level; the per-garden default %q now applies\n", targetName)
+		} else {
+			fmt.Fprintln(o.IOStreams.Out, "Successfully unset access level")
+		}
+	default:
 		fmt.Fprintf(o.IOStreams.Out, "Successfully unset targeted %s %q\n", o.Kind, targetName)
 	}
 

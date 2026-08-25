@@ -33,7 +33,9 @@ var (
 	ErrNoSeedTargeted                = errors.New("no seed cluster targeted")
 	ErrNoShootTargeted               = errors.New("no shoot targeted")
 	ErrNeitherProjectNorSeedTargeted = errors.New("neither project nor seed are targeted")
+	ErrNeitherShootNorSeedTargeted   = errors.New("neither shoot nor seed are targeted")
 	ErrNoControlPlaneTargeted        = errors.New("no control plane targeted")
+	ErrNoAccessLevelSet              = errors.New("no access level set")
 	ErrAborted                       = errors.New("operation aborted")
 )
 
@@ -77,6 +79,12 @@ type Manager interface {
 	TargetShoot(ctx context.Context, name string) (Target, error)
 	// TargetControlPlane sets the control plane target flag
 	TargetControlPlane(ctx context.Context) (Target, error)
+	// TargetAccessLevel applies the invocation's --access-level/--admin/--viewer
+	// flag value to the current target
+	TargetAccessLevel(ctx context.Context) (Target, error)
+	// UnsetTargetAccessLevel drops the explicit access level from the current
+	// target; per-garden defaults are re-resolved on the write
+	UnsetTargetAccessLevel(ctx context.Context) (Target, error)
 	// UnsetTargetGarden unsets the garden target configuration
 	// This implicitly unsets project, shoot and seed target configuration
 	UnsetTargetGarden(ctx context.Context) (string, Target, error)
@@ -542,6 +550,57 @@ func (m *managerImpl) TargetControlPlane(ctx context.Context) (Target, error) {
 	}
 
 	return m.updateTarget(ctx, target)
+}
+
+func (m *managerImpl) TargetAccessLevel(ctx context.Context) (Target, error) {
+	if m.flagAccessLevel == "" {
+		return nil, errors.New("no access level specified")
+	}
+
+	current, err := m.CurrentTarget()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current target: %w", err)
+	}
+
+	if current.GardenName() == "" {
+		return nil, ErrNoGardenTargeted
+	}
+
+	// An access level only applies to gardenlogin-backed kubeconfigs.
+	if current.ShootName() == "" && current.SeedName() == "" {
+		return nil, ErrNeitherShootNorSeedTargeted
+	}
+
+	overlay := &targetFlagsImpl{accessLevel: m.flagAccessLevel}
+
+	target, err := m.applyOverlay(ctx, current, overlay)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.updateTarget(ctx, target)
+}
+
+func (m *managerImpl) UnsetTargetAccessLevel(ctx context.Context) (Target, error) {
+	if m.flagAccessLevel != "" {
+		return nil, errors.New("cannot combine an access level flag with unset")
+	}
+
+	currentTarget, err := m.CurrentTarget()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current target: %w", err)
+	}
+
+	if currentTarget.AccessLevel() == "" {
+		return currentTarget, ErrNoAccessLevelSet
+	}
+
+	// updateTarget re-resolves the level, so clearing it here means "back to defaults".
+	return m.patchTarget(ctx, func(t *targetImpl) error {
+		t.AccessLevelValue = ""
+
+		return nil
+	})
 }
 
 func (m *managerImpl) UnsetTargetControlPlane(ctx context.Context) (Target, error) {

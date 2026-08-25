@@ -1319,6 +1319,55 @@ var _ = Describe("Target Manager", func() {
 			Expect(persistedAccessLevel()).To(BeEmpty())
 		})
 
+		Describe("TargetAccessLevel", func() {
+			It("applies the flag level to the currently targeted shoot", func() {
+				_, err := newInvocation("").TargetShoot(ctx, prod1GoldenShoot.Name)
+				Expect(err).NotTo(HaveOccurred())
+
+				_, err = newInvocation(config.KubeconfigAccessLevelAdmin).TargetAccessLevel(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(persistedAccessLevel()).To(Equal(config.KubeconfigAccessLevelAdmin))
+			})
+
+			It("fails without an access level flag", func() {
+				_, err := newInvocation("").TargetAccessLevel(ctx)
+				Expect(err).To(MatchError("no access level specified"))
+			})
+
+			It("fails when no garden is targeted", func() {
+				targetProvider = fake.NewFakeTargetProvider(target.NewTarget("", "", "", ""))
+				_, err := newInvocation(config.KubeconfigAccessLevelAdmin).TargetAccessLevel(ctx)
+				Expect(err).To(MatchError(target.ErrNoGardenTargeted))
+			})
+
+			It("fails when neither a shoot nor a seed is targeted", func() {
+				_, err := newInvocation(config.KubeconfigAccessLevelAdmin).TargetAccessLevel(ctx)
+				Expect(err).To(MatchError(target.ErrNeitherShootNorSeedTargeted))
+			})
+		})
+
+		Describe("UnsetTargetAccessLevel", func() {
+			It("drops the explicit level and re-resolves the per-garden default", func() {
+				_, err := newInvocation(config.KubeconfigAccessLevelAdmin).TargetShoot(ctx, prod1GoldenShoot.Name)
+				Expect(err).NotTo(HaveOccurred())
+
+				current, err := newInvocation("").UnsetTargetAccessLevel(ctx)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(current.AccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+				Expect(persistedAccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+			})
+
+			It("fails when no access level is set", func() {
+				_, err := newInvocation("").UnsetTargetAccessLevel(ctx)
+				Expect(err).To(MatchError(target.ErrNoAccessLevelSet))
+			})
+
+			It("rejects an access level flag on unset", func() {
+				_, err := newInvocation(config.KubeconfigAccessLevelAdmin).UnsetTargetAccessLevel(ctx)
+				Expect(err).To(MatchError("cannot combine an access level flag with unset"))
+			})
+		})
+
 		It("uses the persisted level for later flagless kubeconfig requests (no drift)", func() {
 			_, err := newInvocation(config.KubeconfigAccessLevelAdmin).TargetShoot(ctx, prod1GoldenShoot.Name)
 			Expect(err).NotTo(HaveOccurred())

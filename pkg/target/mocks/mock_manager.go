@@ -202,6 +202,21 @@ func (mr *MockManagerMockRecorder) ShootNames(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShootNames", reflect.TypeOf((*MockManager)(nil).ShootNames), arg0)
 }
 
+// TargetAccessLevel mocks base method.
+func (m *MockManager) TargetAccessLevel(arg0 context.Context) (target.Target, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TargetAccessLevel", arg0)
+	ret0, _ := ret[0].(target.Target)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TargetAccessLevel indicates an expected call of TargetAccessLevel.
+func (mr *MockManagerMockRecorder) TargetAccessLevel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TargetAccessLevel", reflect.TypeOf((*MockManager)(nil).TargetAccessLevel), arg0)
+}
+
 // TargetControlPlane mocks base method.
 func (m *MockManager) TargetControlPlane(arg0 context.Context) (target.Target, error) {
 	m.ctrl.T.Helper()
@@ -290,6 +305,21 @@ func (m *MockManager) TargetShoot(arg0 context.Context, arg1 string) (target.Tar
 func (mr *MockManagerMockRecorder) TargetShoot(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TargetShoot", reflect.TypeOf((*MockManager)(nil).TargetShoot), arg0, arg1)
+}
+
+// UnsetTargetAccessLevel mocks base method.
+func (m *MockManager) UnsetTargetAccessLevel(arg0 context.Context) (target.Target, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnsetTargetAccessLevel", arg0)
+	ret0, _ := ret[0].(target.Target)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnsetTargetAccessLevel indicates an expected call of UnsetTargetAccessLevel.
+func (mr *MockManagerMockRecorder) UnsetTargetAccessLevel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnsetTargetAccessLevel", reflect.TypeOf((*MockManager)(nil).UnsetTargetAccessLevel), arg0)
 }
 
 // UnsetTargetControlPlane mocks base method.

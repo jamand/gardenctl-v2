@@ -320,6 +320,63 @@ var _ = Describe("Target Command", func() {
 			Expect(currentTarget.ControlPlane()).To(BeFalse())
 		})
 
+		It("should set the access level of the current target with a bare flag", func() {
+			targetProvider.Target = target.NewTarget(gardenName, projectName, "", shootName)
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
+			Expect(cmd.PersistentFlags().Set("admin", "true")).To(Succeed())
+
+			Expect(cmd.RunE(cmd, []string{})).To(Succeed())
+			Expect(out.String()).To(ContainSubstring("Successfully set access level \"admin\"\n"))
+
+			currentTarget, err := targetProvider.Read()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(currentTarget.AccessLevel()).To(Equal(config.KubeconfigAccessLevelAdmin))
+			Expect(currentTarget.ShootName()).To(Equal(shootName))
+		})
+
+		It("should report when the access level does not apply to the current target", func() {
+			// a non-managed seed serves a static kubeconfig that ignores the level
+			targetProvider.Target = target.NewTarget(gardenName, "", seedName, "")
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
+			Expect(cmd.PersistentFlags().Set("admin", "true")).To(Succeed())
+
+			Expect(cmd.RunE(cmd, []string{})).To(Succeed())
+			Expect(out.String()).To(ContainSubstring("The access level does not apply to the current target"))
+
+			currentTarget, err := targetProvider.Read()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(currentTarget.AccessLevel()).To(BeEmpty())
+		})
+
+		It("should fail to set an access level when neither a shoot nor a seed is targeted", func() {
+			targetProvider.Target = target.NewTarget(gardenName, "", "", "")
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
+			Expect(cmd.PersistentFlags().Set("viewer", "true")).To(Succeed())
+
+			Expect(cmd.RunE(cmd, []string{})).To(MatchError(target.ErrNeitherShootNorSeedTargeted))
+		})
+
+		It("should target a shoot together with an access level flag", func() {
+			targetProvider.Target = target.NewTarget(gardenName, projectName, "", "")
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
+			Expect(cmd.Flags().Set("shoot", shootName)).To(Succeed())
+			Expect(cmd.PersistentFlags().Set("admin", "true")).To(Succeed())
+
+			Expect(cmd.RunE(cmd, []string{})).To(Succeed())
+			Expect(out.String()).To(ContainSubstring("Successfully targeted shoot %q (access level: admin)\n", shootName))
+
+			currentTarget, err := targetProvider.Read()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(currentTarget.ShootName()).To(Equal(shootName))
+			Expect(currentTarget.AccessLevel()).To(Equal(config.KubeconfigAccessLevelAdmin))
+		})
+
+		It("should fail with a helpful message when nothing is specified", func() {
+			cmd := cmdtarget.NewCmdTarget(factory, streams)
+
+			Expect(cmd.RunE(cmd, []string{})).To(MatchError(ContainSubstring("no target specified")))
+		})
+
 		It("should display access restrictions of the managed seed backing shoot when targeting a control plane", func() {
 			seedShootName := "seed-shoot"
 			gardenProject := &gardencorev1beta1.Project{

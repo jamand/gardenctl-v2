@@ -205,6 +205,41 @@ var _ = Describe("Target Unset Command", func() {
 		Expect(currentTarget.ShootName()).To(Equal(shootName))
 		Expect(currentTarget.ControlPlane()).To(BeFalse())
 	})
+
+	It("should be able to unset the access level", func() {
+		targetProvider.Target = currentTarget.WithProjectName(projectName).WithShootName(shootName).WithAccessLevel(config.KubeconfigAccessLevelAdmin)
+		cmd := cmdtarget.NewCmdUnset(factory, streams)
+
+		Expect(cmd.RunE(cmd, []string{"access-level"})).To(Succeed())
+		Expect(out.String()).To(ContainSubstring("Successfully unset access level\n"))
+
+		currentTarget, err := targetProvider.Read()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(currentTarget.AccessLevel()).To(BeEmpty())
+		Expect(currentTarget.ShootName()).To(Equal(shootName))
+	})
+
+	It("should report the per-garden default that applies after unsetting the access level", func() {
+		cfg.Gardens[0].KubeconfigAccessLevelDefaults = &config.KubeconfigAccessLevels{
+			Shoots: config.KubeconfigAccessLevelViewer,
+		}
+		targetProvider.Target = currentTarget.WithProjectName(projectName).WithShootName(shootName).WithAccessLevel(config.KubeconfigAccessLevelAdmin)
+		cmd := cmdtarget.NewCmdUnset(factory, streams)
+
+		Expect(cmd.RunE(cmd, []string{"access-level"})).To(Succeed())
+		Expect(out.String()).To(ContainSubstring("Successfully unset access level; the per-garden default \"viewer\" now applies\n"))
+
+		currentTarget, err := targetProvider.Read()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(currentTarget.AccessLevel()).To(Equal(config.KubeconfigAccessLevelViewer))
+	})
+
+	It("should fail to unset the access level if none is set", func() {
+		targetProvider.Target = currentTarget.WithProjectName(projectName).WithShootName(shootName)
+		cmd := cmdtarget.NewCmdUnset(factory, streams)
+
+		Expect(cmd.RunE(cmd, []string{"access-level"})).To(MatchError(target.ErrNoAccessLevelSet))
+	})
 })
 
 var _ = Describe("Target Unset Options", func() {

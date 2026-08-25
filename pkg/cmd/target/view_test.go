@@ -18,6 +18,7 @@ import (
 	"github.com/gardener/gardenctl-v2/internal/util"
 	utilmocks "github.com/gardener/gardenctl-v2/internal/util/mocks"
 	cmdtarget "github.com/gardener/gardenctl-v2/pkg/cmd/target"
+	"github.com/gardener/gardenctl-v2/pkg/config"
 	"github.com/gardener/gardenctl-v2/pkg/target"
 	targetmocks "github.com/gardener/gardenctl-v2/pkg/target/mocks"
 )
@@ -87,6 +88,19 @@ var _ = Describe("Target View Command", func() {
 
 			// here we need the real manager
 			Expect(out.String()).To(Equal(fmt.Sprintf("garden: %s\nproject: %s\nshoot: %s\n", gardenName, projectName, "myshoot2")))
+		})
+	})
+
+	Context("when an access level is set", func() {
+		BeforeEach(func() {
+			currentTarget = target.NewTarget(gardenName, projectName, "", shootName).WithAccessLevel(config.KubeconfigAccessLevelViewer)
+			Expect(targetProvider.Write(currentTarget)).To(Succeed())
+		})
+
+		It("should include the access level in yaml output", func() {
+			cmd := cmdtarget.NewCmdView(factory, streams)
+			Expect(cmd.RunE(cmd, nil)).To(Succeed())
+			Expect(out.String()).To(Equal(fmt.Sprintf("accessLevel: viewer\ngarden: %s\nproject: %s\nshoot: %s\n", gardenName, projectName, shootName)))
 		})
 	})
 

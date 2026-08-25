@@ -44,6 +44,13 @@ gardenctl kubeconfig --access-level=auto           # explicit auto (no shorthand
 
 The shorthands and the full form are mutually exclusive - pass at most one.
 
+A bare flag changes the access level of the current target without retargeting, and `unset` drops an explicit level so the per-garden defaults apply again:
+
+```bash
+gardenctl target --viewer                          # switch the current session to viewer
+gardenctl target unset access-level                # back to the per-garden defaults
+```
+
 > [!NOTE]
 > The access level resolved by `gardenctl target` (flag or per-garden default) is stored on the target and governs the whole session: a subsequent `gardenctl kubeconfig` (without a flag) returns the same level as the session kubeconfig. It is re-resolved on every target change — retargeting without a flag falls back to the per-garden defaults, so a one-off `--admin` does not stick around. On read-only commands (`kubeconfig`, `kubectl-env`) the flags apply only to that invocation and never change the stored target.
 

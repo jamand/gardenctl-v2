@@ -17,6 +17,9 @@ gardenctl target shoot my-shoot
 
 # Target shoot control-plane using values that match a pattern defined for a specific garden
 gardenctl target value/that/matches/pattern --control-plane
+
+# Change the access level of the current target to viewer
+gardenctl target --viewer
 ```
 
 ### Options

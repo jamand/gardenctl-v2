@@ -36,7 +36,10 @@ gardenctl target --garden my-garden --project my-project
 gardenctl target shoot my-shoot
 
 # Target shoot control-plane using values that match a pattern defined for a specific garden
-gardenctl target value/that/matches/pattern --control-plane`,
+gardenctl target value/that/matches/pattern --control-plane
+
+# Change the access level of the current target to viewer
+gardenctl target --viewer`,
 		RunE: base.WrapRunE(o, f),
 	}
 
@@ -68,6 +71,7 @@ const (
 	TargetKindShoot        TargetKind = "shoot"
 	TargetKindPattern      TargetKind = "pattern"
 	TargetKindControlPlane TargetKind = "control-plane"
+	TargetKindAccessLevel  TargetKind = "access-level"
 )
 
 type cobraValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective)
@@ -168,6 +172,10 @@ func (o *TargetOptions) Complete(f util.Factory, _ *cobra.Command, args []string
 			// When combined with target path flags, those flags drive the kind;
 			// path targeting clears or leaves unset shoot-bound control-plane state.
 			o.Kind = TargetKindControlPlane
+		case tf.AccessLevel() != "":
+			// A bare access level flag changes the level of the current target.
+			// Must stay last: any path flag above drives the kind instead.
+			o.Kind = TargetKindAccessLevel
 		}
 	}
 
@@ -192,8 +200,10 @@ func (o *TargetOptions) Complete(f util.Factory, _ *cobra.Command, args []string
 // Validate validates the provided options.
 func (o *TargetOptions) Validate() error {
 	switch o.Kind {
-	case TargetKindControlPlane:
-		// valid
+	case TargetKindControlPlane, TargetKindAccessLevel:
+		// valid without a name argument
+	case "":
+		return errors.New("no target specified - provide a resource (garden|project|seed|shoot), a value matching a configured pattern, or target flags")
 	default:
 		if o.TargetName == "" {
 			return fmt.Errorf("target kind %q requires a name argument", o.Kind)
@@ -233,6 +243,8 @@ func (o *TargetOptions) Run(f util.Factory) error {
 		} else {
 			currentTarget, err = manager.TargetControlPlane(ctx)
 		}
+	case TargetKindAccessLevel:
+		currentTarget, err = manager.TargetAccessLevel(ctx)
 	}
 
 	if err != nil {
@@ -257,6 +269,13 @@ func (o *TargetOptions) Run(f util.Factory) error {
 				fmt.Fprintf(o.IOStreams.Out, "Successfully unset targeted control plane for %q%s\n", currentTarget.ShootName(), levelSuffix)
 			} else {
 				fmt.Fprintf(o.IOStreams.Out, "Successfully targeted control plane of shoot %q%s\n", currentTarget.ShootName(), levelSuffix)
+			}
+		case TargetKindAccessLevel:
+			if level := currentTarget.AccessLevel(); level != "" {
+				fmt.Fprintf(o.IOStreams.Out, "Successfully set access level %q\n", level)
+			} else {
+				// e.g. a non-managed seed, whose static kubeconfig ignores the level
+				fmt.Fprintln(o.IOStreams.Out, "The access level does not apply to the current target; nothing was set")
 			}
 		case "":
 			// no output
